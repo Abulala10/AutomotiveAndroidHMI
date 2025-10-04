@@ -11,8 +11,6 @@
 
 ## 💬 **Add as Header Comments in Script**
 # Here’s what you can add right after the shebang:
-
-#!/bin/bash
 # ================================================================
 # setup-vcan.sh — Manage virtual CAN interfaces (vcan)
 # 
