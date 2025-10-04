@@ -1,67 +1,97 @@
 #!/bin/bash
 # setup-vcan.sh
-# Script to set up a Virtual CAN interface (VCAN)
+# Usage:
+#   ./setup-vcan.sh --up <vcan_name>      -> bring VCAN up
+#   ./setup-vcan.sh --down <vcan_name>    -> bring VCAN down
+#   ./setup-vcan.sh --name <vcan_name>    -> create VCAN if missing
+#   ./setup-vcan.sh --show                 -> list VCANs
+#   ./setup-vcan.sh                        -> bring all VCANs down (default)
 
-INFO="[INFO] :"
-# Default VCAN interface name
-VCAN_IF="vcan0"
+# Default VCAN interface for --name
+DEFAULT_VCAN="vcan_default"
 
-# Helper function
-check_command()
-{
-    # &> /dev/null - Supress output. Returns 0 if command exists, 1 if not
-    command -v "$1" &> /dev/null
-}
+# Variables
+ACTION=""
+VCAN_IF=""
+NAME_IF="$DEFAULT_VCAN"
 
-# Function to show existing VCAN interfaces
+# Function to show VCAN interfaces
 show_vcans() {
-    echo "$INFO Existing VCAN interfaces:"
-    ip link show | grep -E 'vcan[0-9]+' # only displays vcan that have the pattern vcan0, vcan1, vcan2, ... vcann
+    echo "Existing VCAN interfaces:"
+    ip link show | grep -E 'vcan[0-9]+'
     exit 0
 }
 
-# Handle command line argument
-if [ "$1" == "--list-vcan" ]; then
-    show_vcans
-elif [ -n "$1" ]; then
-    # If argument is not empty, treat it as VCAN name
-    VCAN_IF="$1"
-fi
+# Parse arguments using while + case
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --up)
+            ACTION="up"
+            VCAN_IF="$2"
+            if [[ -z "$VCAN_IF" ]]; then
+                echo "Error: Provide VCAN name after --up"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --down)
+            ACTION="down"
+            VCAN_IF="$2"
+            if [[ -z "$VCAN_IF" ]]; then
+                echo "Error: Provide VCAN name after --down"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --name)
+            NAME_IF="$2"
+            if [[ -z "$NAME_IF" ]]; then
+                echo "Error: Provide VCAN name after --name"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --show)
+            show_vcans
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--up|--down <vcan_name>] [--name <vcan_name>] | --show"
+            exit 1
+            ;;
+    esac
+done
 
-echo "VCAN interface to setup: $VCAN_IF"
-
-# Check for modprobe
-if ! check_command modprobe; then
-    echo "$INFO modprobe not found.\n$INFO is needed to load kernel modules like vcan.\n$INFO Installing required kernel utilities..."
-    sudo apt update
-    sudo apt install -y kmod
-else
-    echo "$INFO modprobe found ..."
-fi
-
-# ensures vcan is available for simulation, even on minimal Linux installs.
+# Load vcan module if not loaded
 if ! lsmod | grep -q vcan; then
-    echo "$INFO Loading vcan module..."
-    sudo modeprobe vcaon &> /dev/null
-else
-    echo "$INFO vcan module already loaded."
+    echo "Loading vcan module..."
+    sudo modprobe vcan
 fi
 
-# Checks if the virtual that we are trying to create $VCAN_IF="vcan0" is already there or not.
-if ip link show "$VCAN_IF" &> /dev/null; then
-    echo "$INFO Interface $VCAN_IF already exists."
-else
-    echo "$INFO Creating virtual CAN interface $VCAN_IF..."
-    sudo ip link add dev "$VCAN_IF" type vcan
+# Create VCAN from --name if it doesn't exist
+if ! ip link show "$NAME_IF" &> /dev/null; then
+    echo "Creating VCAN $NAME_IF from --name..."
+    sudo ip link add dev "$NAME_IF" type vcan
 fi
 
-echo "$INFO Bringing $VCAN_IF up..."
-sudo ip link set up "$VCAN_IF"
-
-echo "$INFO VCAN interface setup complete. Current interfaces:"
-ip link show | grep "$VCAN_IF"
-
-echo "$INFO You can now test using: candump $VCAN_IF"
-
-
-
+# Perform --up or --down action if specified
+if [[ -n "$ACTION" ]]; then
+    echo "Setting $VCAN_IF $ACTION..."
+    # Create interface if it doesn’t exist (optional safety)
+    if [[ "$ACTION" == "up" ]] && ! ip link show "$VCAN_IF" &> /dev/null; then
+        echo "Creating VCAN $VCAN_IF..."
+        sudo ip link add dev "$VCAN_IF" type vcan
+    fi
+    sudo ip link set "$VCAN_IF" "$ACTION"
+    echo "Current state of $VCAN_IF:"
+    ip link show "$VCAN_IF"
+else
+    # No --up or --down provided → bring all VCANs down
+    echo "No action provided. Bringing all VCANs down..."
+    VCANS=$(ip link show | grep -E 'vcan[0-9]+' | awk -F: '{print $2}' | tr -d ' ')
+    for v in $VCANS; do
+        echo "Bringing $v down..."
+        sudo ip link set "$v" down
+    done
+    echo "All VCANs are now down."
+fi
