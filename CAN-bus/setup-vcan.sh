@@ -10,6 +10,7 @@
 
 # Default VCAN interface for --name
 DEFAULT_VCAN="vcan_default"
+IP_CMD=$(command -v ip)
 
 # Variables
 ACTION=""
@@ -17,11 +18,13 @@ VCAN_IF=""
 NAME_IF=""
 DELETE_IF=""
 
+delete_all=false
+
 # Function to show VCAN interfaces
 show_vcans() {
-    if ip link show | grep -qE 'vcan[0-9]+'; then
+    if $IP_CMD link show | grep -qE 'vcan[0-9]+'; then
         echo "Existing VCAN interfaces:"
-        ip link show | grep -E 'vcan[0-9]+'
+        $IP_CMD link show | grep -E 'vcan[0-9]+'
         exit 0
     else
         echo "No existing interfaces ..."
@@ -68,9 +71,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --show)
             show_vcans
+            shift 1
             ;;
         --delete-all)
             delete_all=true
+            shift 1
             ;;
         *)
             echo "Unknown option: $1"
@@ -80,47 +85,70 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# -----------------------------------------------------
+# Delete all vcan interfaces if requested
+# -----------------------------------------------------
+if [ "$delete_all" = true ]; then
+    echo "Deleting all vcan interfaces..."
+    while read -r iface; do
+        echo "   → Deleting $iface"
+        sudo $IP_CMD link delete "$iface" type vcan 2>/dev/null
+    done < <($IP_CMD -o link show | awk -F': ' '/vcan[0-9]+/ {print $2}')
+    echo "All vcan interfaces deleted."
+    exit 0
+fi
+
+# -----------------------------------------------------
 # Load vcan module if not loaded
+# -----------------------------------------------------
 if ! lsmod | grep -q vcan; then
     echo "Loading vcan module..."
     sudo modprobe vcan
 fi
 
+# -----------------------------------------------------
 # Handle --delete independently
+# -----------------------------------------------------
 if [[ -n "$DELETE_IF" ]]; then
-    if ip link show "$DELETE_IF" &> /dev/null; then
+    if $IP_CMD link show "$DELETE_IF" &> /dev/null; then
         echo "Deleting VCAN $DELETE_IF..."
-        sudo ip link delete "$DELETE_IF" type vcan
+        sudo $IP_CMD link delete "$DELETE_IF" type vcan
     else
         echo "VCAN $DELETE_IF does not exist."
     fi
 fi
 
+# -----------------------------------------------------
 # Handle --name independently
+# -----------------------------------------------------
 if [[ -n "$NAME_IF" ]]; then
-    if ! ip link show "$NAME_IF" &> /dev/null; then
+    if ! $IP_CMD link show "$NAME_IF" &> /dev/null; then
         echo "Creating VCAN $NAME_IF..."
-        sudo ip link add dev "$NAME_IF" type vcan
+        sudo $IP_CMD link add dev "$NAME_IF" type vcan
         echo "VCAN $NAME_IF created."
     else
         echo "VCAN $NAME_IF already exists. Describing it:"
-        ip -details link show "$NAME_IF"
+        $IP_CMD -details link show "$NAME_IF"
     fi
 fi
 
+# -----------------------------------------------------
 # Perform --up or --down if specified
+# -----------------------------------------------------
 if [[ -n "$ACTION" ]]; then
     echo "Setting $VCAN_IF $ACTION..."
-    if [[ "$ACTION" == "up" ]] && ! ip link show "$VCAN_IF" &> /dev/null; then
+    if [[ "$ACTION" == "up" ]] && ! $IP_CMD link show "$VCAN_IF" &> /dev/null; then
         echo "Creating VCAN $VCAN_IF..."
-        sudo ip link add dev "$VCAN_IF" type vcan
+        sudo $IP_CMD link add dev "$VCAN_IF" type vcan
     fi
-    sudo ip link set "$VCAN_IF" "$ACTION"
+    sudo $IP_CMD link set "$VCAN_IF" "$ACTION"
     echo "Current state of $VCAN_IF:"
-    ip link show "$VCAN_IF"
+    $IP_CMD link show "$VCAN_IF"
 fi
 
+# -----------------------------------------------------
 # If no action and no --name/--delete, do nothing to VCAN states
+# -----------------------------------------------------
 if [[ -z "$ACTION" && -z "$NAME_IF" && -z "$DELETE_IF" ]]; then
     echo "No action provided. All VCANs remain as they are."
 fi
