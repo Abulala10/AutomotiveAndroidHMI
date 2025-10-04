@@ -9,6 +9,28 @@
 #   ./setup-vcan.sh                            -> do nothing to VCAN states
 
 
+## 💬 **Add as Header Comments in Script**
+# Here’s what you can add right after the shebang:
+# ================================================================
+# setup-vcan.sh — Manage virtual CAN interfaces (vcan)
+# 
+# 🧩 Dependencies:
+#   - bash (default shell)
+#   - iproute2 → provides `ip` command
+#   - kmod → provides `modprobe`
+#   - grep, awk → text parsing utilities
+#   - sudo → for privileged network operations
+#   - can-utils (optional, for testing)
+#   - vcan kernel module (usually built-in; load via `modprobe vcan`)
+#
+# 🛠️ Install missing packages:
+#   sudo apt update
+#   sudo apt install iproute2 can-utils kmod
+#
+# 🧠 Notes:
+#   - Run with sudo or root privileges for add/delete operations
+#   - Tested on Ubuntu/Debian systems
+# ================================================================
 
 
 
