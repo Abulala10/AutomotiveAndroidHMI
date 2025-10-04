@@ -1,0 +1,6 @@
+=======================================================00
+# Everyday todo written here
+# 4 October 2025
+# 
+# create a realistic simulation for car speed value.
+#   
