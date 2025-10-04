@@ -19,9 +19,14 @@ DELETE_IF=""
 
 # Function to show VCAN interfaces
 show_vcans() {
-    echo "Existing VCAN interfaces:"
-    ip link show | grep -E 'vcan[0-9]+'
-    exit 0
+    if ip link show | grep -qE 'vcan[0-9]+'; then
+        echo "Existing VCAN interfaces:"
+        ip link show | grep -E 'vcan[0-9]+'
+        exit 0
+    else
+        echo "No existing interfaces ..."
+        exit 0
+    fi
 }
 
 # Parse arguments
@@ -63,6 +68,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --show)
             show_vcans
+            ;;
+        --delete-all)
+            delete_all=true
             ;;
         *)
             echo "Unknown option: $1"
