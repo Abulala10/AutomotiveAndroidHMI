@@ -8,13 +8,15 @@
 #   ./setup-vcan.sh --show                   -> list all VCANs
 #   ./setup-vcan.sh                            -> do nothing to VCAN states
 
-# Default VCAN interface for --name
-DEFAULT_VCAN="vcan_default"
-IP_CMD=$(command -v ip)
+
+
+
+
+IP_CMD=$(command -v ip) # Finds the full path for ip (manages network interfaces)
 
 # Variables
-ACTION=""
-VCAN_IF=""
+ACTION="" # up or down (For Interfaces)
+VCAN_IF="" # 
 NAME_IF=""
 DELETE_IF=""
 
@@ -76,6 +78,16 @@ while [[ $# -gt 0 ]]; do
         --delete-all)
             delete_all=true
             shift 1
+            ;;
+        --help)
+            echo "Welcome to Virtual Can Setup."
+            echo -e "   → --name name_of_vcan to initiialiize a new vcan."
+            echo -e "   → --show to get a list of all vcan."
+            echo -e "   → --delete name_of_vcan to delete a particular vcan."
+            echo -e "   → --up name_of_vcan to enable interface (send & receive)."
+            echo -e "   → --down name_of_vcan to disable interface (send & receive)."
+            shift 1
+            exit 0
             ;;
         *)
             echo "Unknown option: $1"
