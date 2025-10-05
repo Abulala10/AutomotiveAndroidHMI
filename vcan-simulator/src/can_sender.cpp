@@ -1,4 +1,5 @@
 #include "../include/can_sender.hpp"
+#include "../include/can_utils.hpp"
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <sys/socket.h>
@@ -9,6 +10,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <ctime>
+
 #define INTERFACE_NAME "vcan0"
 
 using namespace std;
@@ -59,7 +61,9 @@ int create_can_socket()
         perror("Socket creation failed");
         return 1;
     }
-
+    vector<string> lst_can_ifaces = list_can_interfaces(s);
+    print_vector(lst_can_ifaces);
+    
     // Interface request
     struct ifreq ifr;
     strncpy(ifr.ifr_name, INTERFACE_NAME, IFNAMSIZ - 1); // dest, src, n(16) setting the inteface name.
