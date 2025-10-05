@@ -35,10 +35,19 @@ int create_can_socket()
         return 1;
     }
 
-    //// Interface request   
+    // Interface request   
     struct ifreq ifr;
     strncpy(ifr.ifr_name, "vcan0", IFNAMSIZ - 1); // dest, src, n(16)
     ifr.ifr_name[IFNAMSIZ - 1] = '\0'; // Ensures the str is properly null terminated.
+
+    // cout << ifr << endl;
+    if (ioctl(s, SIOCGIFINDEX, &ifr) < 0) // ioctl -> inp/out control & generic interface to communicate with device drivers
+    {
+        // NOTE ioctl returns -1 on failure.
+        perror("ioctl failed");
+        close(s);
+        return -1;
+    }
     return s;
 
 }
