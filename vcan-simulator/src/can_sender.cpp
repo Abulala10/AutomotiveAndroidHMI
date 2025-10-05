@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <ctime>
+#define INTERFACE_NAME "vcan0"
 
 using namespace std;
 
@@ -27,6 +28,30 @@ int main(int argc, char* argv[])
 
 int create_can_socket()
 {
+    /*
+        +---------------------------+
+        | struct ifreq (ifr)        |
+        |---------------------------|
+        | ifr_name: "vcan0"         | <-- Interface name you set
+        | ifr_ifindex: 3            | <-- Filled by ioctl(SIOCGIFINDEX)
+        +---------------------------+
+                      |
+                      v
+        +---------------------------+
+        | struct sockaddr_can (addr)|
+        |---------------------------|
+        | can_family: AF_CAN        | <-- Protocol family for CAN sockets
+        | can_ifindex: 3            | <-- Interface index from ifr.ifr_ifindex
+        +---------------------------+
+                      |
+                      v
+        +---------------------------+
+        | socket (sock)             |
+        |---------------------------|
+        | Bound to addr              | <-- Can send/receive CAN frames on "vcan0"
+        +---------------------------+
+
+    */
     int s = socket(PF_CAN, SOCK_RAW, CAN_RAW); 
     
     if (s < 0)
@@ -35,19 +60,34 @@ int create_can_socket()
         return 1;
     }
 
-    // Interface request   
+    // Interface request
     struct ifreq ifr;
-    strncpy(ifr.ifr_name, "vcan0", IFNAMSIZ - 1); // dest, src, n(16)
+    strncpy(ifr.ifr_name, INTERFACE_NAME, IFNAMSIZ - 1); // dest, src, n(16) setting the inteface name.
     ifr.ifr_name[IFNAMSIZ - 1] = '\0'; // Ensures the str is properly null terminated.
 
-    // cout << ifr << endl;
+    // cout << INTERFACE << endl;
     if (ioctl(s, SIOCGIFINDEX, &ifr) < 0) // ioctl -> inp/out control & generic interface to communicate with device drivers
     {
         // NOTE ioctl returns -1 on failure.
+        // SIOCGIFINDEX -  To retrieve the index of a network interface
         perror("ioctl failed");
         close(s);
         return -1;
     }
+    
+    struct sockaddr_can addr;
+    memset(&addr, 0, sizeof(addr)); // Clear structure in the memory and set value to 0
+    addr.can_family = AF_CAN; // CAN Family
+    addr.can_ifindex = ifr.ifr_ifindex; // providing with index
+    
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) 
+    {
+        perror("Bind failed");
+        close(s);
+        return -1;
+    }
+    
+    std::cout << "CAN socket created and bound to " << INTERFACE_NAME << endl;
     return s;
 
 }
