@@ -18,11 +18,6 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2)
-    {
-        cerr << "Usage: " << argv[0] << "<vcan_interface>\n";
-        return 1;
-    }
     int s = create_can_socket();
     cout << "Socket Generated.\n";
     return 0;
